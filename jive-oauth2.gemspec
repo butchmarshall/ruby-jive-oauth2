@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
 
 	spec.summary       = %q{Basic OAuth2 support for Jive}
 	spec.description   = %q{Utility functions for dealing with OAuth2 and Jive}
-	spec.homepage      = "https://github.com/butchmarshall/jive-OAuth2"
+	spec.homepage      = "https://github.com/butchmarshall/ruby-jive-oauth2"
 	spec.license       = "MIT"
 
 	spec.files         = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }

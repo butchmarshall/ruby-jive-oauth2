@@ -8,25 +8,29 @@ require "cgi"
 require "cgi/query_string"
 
 module Jive
-	class OAuth2
-		# Initialize
+	module OAuth2
+		module_function
+
+		# Builds an authorize url
 		#
-		def initialize(options)
-			@options = ::OpenStruct.new(options)
+		# TODO - detailed description
+		#
+		# * *Args*    :
+		#   - +options+ -> options
+		#   - +callback+ -> callback
+		#   - +context+ -> context
+		#   - +extra_auth_params+ -> extra_auth_params
+		# * *Returns* :
+		#   - url
+		# * *Raises* :
+		#   - +ArgumentError+ -> if not right
+		#
+		def build_authorize_url_response_map(options, callback, context, extra_auth_params = {})
+			oauth2_conf = ::OpenStruct.new(options).to_h
 
-			# Require
-			# - clientOAuth2CallbackUrl
-			# - oauth2ConsumerKey
-			# - oauth2ConsumerSecret
-		end
-
-		def get_oauth2_conf
-			@options.to_h
-		end
-
-		def build_authorize_url_response_map(oauth2_conf, callback, context, extra_auth_params = {})
 			state_to_encode = {
-				:jiveRedirectUrl => callback
+				:jiveRedirectUrl => callback,
+				:client_id => oauth2_conf[:oauth2ConsumerKey]
 			}
 
 			if (context)
@@ -61,10 +65,25 @@ module Jive
 				:url => "#{uri.scheme}://#{uri.host}#{uri.path}?state=#{state}&#{::CGI::QueryString.param(query_params)}"
 			}
 		end
-		
-		def build_oauth2_callback_object(oauth2_conf, code, extra_params = {})
+
+		# Builds a callback object
+		#
+		# TODO - detailed description
+		#
+		# * *Args*    :
+		#   - +options+ -> options
+		#   - +code+ -> code
+		#   - +extra_params+ -> extra_params
+		# * *Returns* :
+		#   - callback object
+		# * *Raises* :
+		#   - +ArgumentError+ -> if not right
+		#
+		def build_oauth2_callback_object(options, code, extra_params = {})
+			oauth2_conf = ::OpenStruct.new(options).to_h
+
 			redirect_uri = oauth2_conf[:clientOAuth2CallbackUrl]
-			
+
 			post_object = {
 					:grant_type => 'authorization_code',
 					:redirect_uri => redirect_uri,
@@ -73,6 +92,10 @@ module Jive
 					:code => code,
 			};
 
+			if !oauth2_conf[:oauth2CallbackExtraParams].nil?
+				post_object = post_object.merge oauth2_conf[:oauth2CallbackExtraParams]
+			end
+
 			if extra_params.is_a?(Hash)
 				post_object = post_object.merge(extra_params)
 			end
@@ -80,21 +103,35 @@ module Jive
 			return post_object
 		end
 
-		def get_oauth2_token(oauth2_conf, post_object)
+		# Retrieves oauth token from server
+		#
+		# TODO - detailed description
+		#
+		# * *Args*    :
+		#   - +options+ -> options
+		#   - +post_object+ -> post_object
+		# * *Returns* :
+		#   - oauth token response
+		# * *Raises* :
+		#   - +ArgumentError+ -> if not right
+		#
+		def get_oauth2_token(options, post_object)
+			oauth2_conf = ::OpenStruct.new(options).to_h
+
 			uri = URI(oauth2_conf[:originServerTokenRequestUrl])
 			req = Net::HTTP::Post.new(uri.path)
 			req.set_form_data(post_object)
 			req['Content-Type'] = 'application/x-www-form-urlencoded'
 
-			res = Net::HTTP.start(uri.hostname, uri.port) do |http|
+			res = Net::HTTP.start(uri.hostname, uri.port, :use_ssl => (uri.scheme == 'https')) do |http|
 				http.request(req)
 			end
 
 			case res
 				when Net::HTTPSuccess, Net::HTTPRedirection
-			# OK
-			else
-				res.value
+					res.body
+				else
+					res.value
 			end
 		end
 	end
